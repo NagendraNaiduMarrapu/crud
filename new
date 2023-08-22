@@ -13,16 +13,21 @@
     Name : <input type="text" id="name" name="name"/><br><br>
     department : <input type="text" id="dept" name="dept"/><br><br>
     Salary : <input type="text" id="sal" name="sal"/><br><br>
-    <button type="submit" name="mode" value="first">First</button>
+    Mode:<select id="selectt">
+	<option>Edit</option>
+	<option>Add</option>
+	<option>Delete</option>
+	</select> <br><br>
+    <button type="submit" id="first" name="mode" value="first">First</button>
     <button type="submit" name="mode" value="last">Last</button>
     <button type="submit" name="mode" value="previous">previous</button>
     <button type="submit" name="mode" value="next">next</button><br><br>
     <button type="submit" name="mode" value="edit">edit</button>
     <button type="submit" name="mode" value="add">Add</button>
-    <button type="submit" name="mode" value="delete">Delete</button><br><br>
+    <button type="submit" name="mode" value="delete">Delete</button>
+    <button type="submit" name="mode" value="save">save</button><br><br>
     <button type="submit" name="mode" value="exit">exit</button>
     <button type="submit" name="mode" value="clear">clear</button>
-    <button type="submit" name="mode" value="search">search</button>
 </form>
 <% 
 int id = 0;
@@ -30,13 +35,15 @@ String name = null, dept = null;
 double sal = 0;
 HttpSession hs = request.getSession(); 
 int curLine = 0;
+String mode = request.getParameter("mode");
 Connection c = null;
 PreparedStatement st = null;
 ArrayList<Emp> al = new ArrayList<Emp>();
 ArrayList<Emp> all = new ArrayList<Emp>();
 try {
     Class.forName("org.postgresql.Driver");
-    c = DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres", "postgres", "1234");
+    c = DriverManager.getConnection("jdbc:postgresql://192.168.110.48:5432/plf_training", "plf_training_admin",
+			"pff123");
     st = c.prepareStatement("select * from emplo");
     ResultSet rs = st.executeQuery();
     if(rs.next()) {
@@ -46,7 +53,9 @@ try {
         sal = rs.getDouble(4);
         Emp e = new Emp(id, name, dept, sal);
         al.add(e);
+        all.add(e);
     }
+  
     while(rs.next()){
          int iid = rs.getInt(1);
          String nname = rs.getString(2);
@@ -63,13 +72,13 @@ Integer sessionCurLine = (Integer) hs.getAttribute("curLine");
 if (sessionCurLine != null) {
     curLine = sessionCurLine;
 }
-String mode = request.getParameter("mode");
+
 
 if (mode != null && mode.equals("first")) {
     if (!all.isEmpty()) {
         curLine = 0;
         hs.setAttribute("curLine", curLine);
-        Emp firstEmp = al.get(0);
+        Emp firstEmp = all.get(0);
         id = firstEmp.getId();
         name = firstEmp.getName();
         dept = firstEmp.getDept();
@@ -113,10 +122,139 @@ if (mode != null && mode.equals("next")) {
     sal = nextEmp.getSal();
 }
 
+if (mode != null && mode.equals("edit")) {
+	hs.setAttribute("status",mode);
+	Emp pEmp = all.get(curLine);
+	id = pEmp.getId();
+    name = pEmp.getName();
+    dept = pEmp.getDept();
+    sal = pEmp.getSal();
+}
+
+
+if (mode != null && mode.equals("delete")) {
+	hs.setAttribute("status",mode);
+	Emp piEmp = all.get(curLine);
+	id = piEmp.getId();
+    name = piEmp.getName();
+    dept = piEmp.getDept();
+    sal = piEmp.getSal();
+}
+
+if (mode != null && mode.equals("add")) {
+	hs.setAttribute("status",mode);
+	
+}
+
+if (mode != null && mode.equals("save")) {
+	String status = (String)hs.getAttribute("status");
+	if (status.equals("add")) {
+        String newName = request.getParameter("name");
+        String newDept = request.getParameter("dept");
+        double newSal = Double.parseDouble(request.getParameter("sal"));
+
+        try {
+        	 Class.forName("org.postgresql.Driver");
+        	 c = DriverManager.getConnection("jdbc:postgresql://192.168.110.48:5432/plf_training", "plf_training_admin",
+        				"pff123");
+            PreparedStatement insertStatement = c.prepareStatement(
+                "INSERT INTO emplo (name, department, salary) VALUES (?, ?, ?)"
+            );
+            insertStatement.setString(1, newName);
+            insertStatement.setString(2, newDept);
+            insertStatement.setDouble(3, newSal);
+            
+         
+            insertStatement.executeUpdate();
+            
+            Emp newEmp = new Emp(0, newName, newDept, newSal);
+            all.add(newEmp);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+	if (status.equals("delete")) {
+		int deletedEmpId = Integer.parseInt(request.getParameter("id"));
+        try {
+        	Class.forName("org.postgresql.Driver");
+       	 	c = DriverManager.getConnection("jdbc:postgresql://192.168.110.48:5432/plf_training", "plf_training_admin",
+       				"pff123");
+            
+
+  
+            PreparedStatement deleteStatement = c.prepareStatement(
+                "DELETE FROM emplo WHERE id=?"
+            );
+            deleteStatement.setInt(1, deletedEmpId);
+
+       
+            deleteStatement.executeUpdate();
+
+  
+           
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+	if (status.equals("edit")) {
+        String newName = request.getParameter("name");
+        String newDept = request.getParameter("dept");
+        double newSal = Double.parseDouble(request.getParameter("sal"));
+
+        try {
+            int editedEmpId = Integer.parseInt(request.getParameter("id"));
+
+
+            PreparedStatement updateStatement = c.prepareStatement(
+                "UPDATE emplo SET name=?, department=?, salary=? WHERE id=?"
+            );
+            updateStatement.setString(1, newName);
+            updateStatement.setString(2, newDept);
+            updateStatement.setDouble(3, newSal);
+            updateStatement.setInt(4, editedEmpId);
+
+         
+            updateStatement.executeUpdate();
+
+           
+            Emp editedEmp = all.get(curLine);
+            editedEmp.setName(newName);
+            editedEmp.setDept(newDept);
+            editedEmp.setSal(newSal);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+
 System.out.println(curLine);
 
 %>
 <script>
+var x = "<%= mode %>";
+console.log(x);
+if(x === "add"){
+	var y = document.getElementById("selectt");
+	 y.selectedIndex = 1; 
+}
+if(x === "edit"){
+	var y = document.getElementById("selectt");
+	 y.selectedIndex = 0; 
+}
+if(x === "delete"){
+	var y = document.getElementById("selectt");
+	 y.selectedIndex = 2; 
+	 var a = document.getElementById("id");
+	 var b = document.getElementById("name");
+	 var c = document.getElementById("dept");
+	 var d = document.getElementById("sal");
+	 a.value = "<%= id %>";
+	 b.value = "<%= name %>";
+	 c.value = "<%= dept %>";
+	 d.value = "<%= sal %>";
+}
+else{
 var a = document.getElementById("id");
 var b = document.getElementById("name");
 var c = document.getElementById("dept");
@@ -125,46 +263,9 @@ a.value = "<%= id %>";
 b.value = "<%= name %>";
 c.value = "<%= dept %>";
 d.value = "<%= sal %>";
+}
+
 </script>
 </body>
 </html>
--------------------------------------------------------------------------------
-package com.crud;
 
-public class Emp {
-	int id;
-	String name,dept;
-	double sal;
-	public Emp(int id, String name, String dept, double sal) {
-		super();
-		this.id = id;
-		this.name = name;
-		this.dept = dept;
-		this.sal = sal;
-	}
-	public int getId() {
-		return id;
-	}
-	public void setId(int id) {
-		this.id = id;
-	}
-	public String getName() {
-		return name;
-	}
-	public void setName(String name) {
-		this.name = name;
-	}
-	public String getDept() {
-		return dept;
-	}
-	public void setDept(String dept) {
-		this.dept = dept;
-	}
-	public double getSal() {
-		return sal;
-	}
-	public void setSal(double sal) {
-		this.sal = sal;
-	}
-	
-}
